@@ -1,0 +1,276 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task | Promedio de Notas</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0e192d;color:#f5f6ff;font-family:Arial,sans-serif}
+.app{display:flex;min-height:100vh}
+aside{width:245px;padding:28px 16px;background:#101b30;border-right:1px solid #293750}
+.brand{font-size:29px;font-weight:bold;margin-bottom:42px}
+.brand span{background:#8275f4;padding:8px 12px;border-radius:12px}
+nav button{display:block;width:100%;text-align:left;padding:16px;margin:6px 0;border:0;border-radius:12px;background:transparent;color:#aab8d4;cursor:pointer;font-size:15px}
+nav button.active,nav button:hover{background:#343775;color:white}
+main{flex:1;min-width:0}
+header{padding:24px 30px;background:#142139;font-size:23px;font-weight:bold}
+.content{max-width:850px;margin:auto;padding:24px}
+.panel{padding:28px;background:#182640;border-radius:17px}
+h1{font-size:27px;margin-top:0}
+p{color:#aab8d4;line-height:1.6}
+.card{padding:22px;background:#202f4c;border:1px solid #344565;border-radius:15px;margin-top:20px}
+label{display:block;font-weight:bold;margin-bottom:10px}
+input{width:100%;padding:14px;margin-bottom:12px;background:#202e49;color:white;border:1px solid #394a6a;border-radius:12px;font-size:16px}
+button.action{padding:14px;background:#8275f4;color:white;border:0;border-radius:12px;cursor:pointer;font-weight:bold}
+button.action:hover{filter:brightness(1.1)}
+button.remove{background:transparent;color:#ff9ba8;border:0;font-size:22px;cursor:pointer}
+.grade{display:flex;gap:8px;align-items:center}
+.grade input{flex:1;min-width:0}
+.grade button{margin-bottom:12px}
+.full{width:100%;margin-top:12px}
+.result{margin-top:22px;padding:25px;border-radius:15px;background:#26345a}
+.average{font-size:44px;font-weight:bold;margin:5px 0;color:white}
+.entry{padding:15px;background:#202f4c;border-radius:10px;margin-top:10px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.entry button{padding:8px;border:0;border-radius:8px;background:#393a70;color:white;cursor:pointer}
+.view{display:none}
+.view.active{display:block}
+.status{color:#b7aaff}
+@media(max-width:650px){aside{width:68px;padding:20px 7px}.brand{font-size:0;text-align:center;margin-bottom:30px}.brand span{font-size:23px;padding:7px}nav button{text-align:center;font-size:20px;padding:14px 3px}nav button .label{display:none}.content{padding:12px}.panel{padding:17px}header{padding:20px;font-size:20px}h1{font-size:22px}.average{font-size:36px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+<div class="brand"><span>✓</span> <b>Task</b></div>
+<nav>
+<button class="active" data-view="inicio">⌂ <span class="label">Inicio</span></button>
+<button data-view="tareas">☷ <span class="label">Mis tareas</span></button>
+<button data-view="historial">▥ <span class="label">Promedio de notas</span></button>
+<button data-view="config">⚙ <span class="label">Configuración</span></button>
+</nav>
+</aside>
+<main>
+<header id="page-title">Task</header>
+<div class="content">
+
+<section class="panel view active" id="inicio">
+<h1>▦ Promedio de Notas</h1>
+<p>Ingresa las notas del estudiante y calcula su promedio de forma rápida y sencilla.</p>
+<div class="card">
+<form id="grade-form">
+<label for="nombre">Nombre del estudiante</label>
+<input id="nombre" value="Ana Gómez" maxlength="100" required>
+<label>Notas</label>
+<div id="grades"></div>
+<button type="button" class="action full" id="add">＋ Agregar otra nota</button>
+<button type="submit" class="action full">▦ Calcular promedio</button>
+<p id="error" role="alert"></p>
+</form>
+</div>
+<div class="result" id="result" hidden aria-live="polite">
+<p id="result-name">Promedio del estudiante</p>
+<div class="average" id="average">0.00</div>
+<p id="detail"></p>
+</div>
+</section>
+
+<section class="panel view" id="tareas">
+<h1>Mis tareas</h1>
+<p>Organiza tus actividades académicas.</p>
+<form id="task-form">
+<label for="task-title">Nueva tarea</label>
+<input id="task-title" placeholder="Ej. Estudiar matemáticas" maxlength="120" required>
+<button class="action" type="submit">Agregar tarea</button>
+</form>
+<div id="tasks"></div>
+</section>
+
+<section class="panel view" id="historial">
+<h1>Promedio de notas</h1>
+<p>Consulta tus cálculos anteriores.</p>
+<div id="history"></div>
+<button class="action full" id="clear-history">Limpiar historial</button>
+</section>
+
+<section class="panel view" id="config">
+<h1>Configuración</h1>
+<p>Define la escala de calificación.</p>
+<label for="max-grade">Nota máxima</label>
+<input type="number" id="max-grade" min="1" max="100" step="1" value="5">
+<label for="pass-grade">Nota mínima para aprobar</label>
+<input type="number" id="pass-grade" min="0" max="100" step="any" value="3">
+<button class="action" id="save-config">Guardar configuración</button>
+<p id="config-message"></p>
+</section>
+
+</div>
+</main>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+let maxGrade=5,passGrade=3;
+
+async function api(url,options={}){
+  const response=await fetch(url,{
+    ...options,
+    headers:{'Content-Type':'application/json',...(options.headers||{})}
+  });
+  const data=await response.json();
+  if(!response.ok)throw new Error(data.error||'Ha ocurrido un error.');
+  return data;
+}
+
+function notify(message){
+  alert(message);
+}
+
+function addGrade(value=''){
+  if($('#grades').children.length>=50)return notify('Máximo 50 notas.');
+  const row=document.createElement('div');
+  row.className='grade';
+  const input=document.createElement('input');
+  input.type='number';input.className='grade-input';
+  input.min='0';input.max=maxGrade;input.step='any';
+  input.placeholder='Ingresa una nota';input.required=true;input.value=value;
+  input.setAttribute('aria-label','Nota');
+  const remove=document.createElement('button');
+  remove.type='button';remove.className='remove';remove.textContent='×';
+  remove.setAttribute('aria-label','Eliminar nota');
+  remove.onclick=()=>{
+    if($('#grades').children.length===1)return notify('Debes conservar al menos una nota.');
+    row.remove();
+  };
+  row.append(input,remove);$('#grades').append(row);
+}
+
+$('#add').onclick=()=>addGrade();
+
+$('#grade-form').onsubmit=async e=>{
+  e.preventDefault();
+  $('#error').textContent='';
+  const nombre=$('#nombre').value.trim();
+  const inputs=[...document.querySelectorAll('.grade-input')];
+  const notas=inputs.map(i=>i.value.trim()===''?NaN:Number(i.value));
+  if(!nombre)return $('#error').textContent='Ingresa el nombre del estudiante.';
+  if(notas.some(n=>!Number.isFinite(n)))return $('#error').textContent='Completa todas las notas.';
+  if(notas.some(n=>n<0||n>maxGrade))return $('#error').textContent=`Las notas deben estar entre 0 y ${maxGrade}.`;
+
+  try{
+    const r=await api('/api/promedio',{
+      method:'POST',body:JSON.stringify({nombre,notas})
+    });
+    $('#result').hidden=false;
+    $('#result-name').textContent='Promedio de '+r.nombre;
+    $('#average').textContent=r.promedio.toFixed(2);
+    $('#detail').textContent=`${r.cantidad} notas · ${r.aprobado?'Aprobado':'En proceso de recuperación'}`;
+    await renderHistory();
+  }catch(err){$('#error').textContent=err.message;}
+};
+
+const titles={
+  inicio:'Task',
+  tareas:'Mis tareas',
+  historial:'Promedio de notas',
+  config:'Configuración'
+};
+
+document.querySelectorAll('nav button').forEach(button=>{
+  button.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b===button));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    $('#'+button.dataset.view).classList.add('active');
+    $('#page-title').textContent=titles[button.dataset.view];
+    if(button.dataset.view==='tareas')renderTasks();
+    if(button.dataset.view==='historial')renderHistory();
+  };
+});
+
+async function renderHistory(){
+  const container=$('#history');
+  container.replaceChildren();
+  try{
+    const items=await api('/api/historial');
+    if(!items.length){container.textContent='Todavía no hay promedios calculados.';return;}
+    items.forEach(item=>{
+      const entry=document.createElement('div');entry.className='entry';
+      const name=document.createElement('span');
+      name.textContent=item.nombre+' · '+item.cantidad+' notas';
+      const score=document.createElement('strong');
+      score.className='status';score.textContent=item.promedio.toFixed(2);
+      entry.append(name,score);container.append(entry);
+    });
+  }catch(err){container.textContent=err.message;}
+}
+
+$('#clear-history').onclick=async()=>{
+  try{await api('/api/historial',{method:'DELETE'});await renderHistory();}
+  catch(err){notify(err.message);}
+};
+
+$('#task-form').onsubmit=async e=>{
+  e.preventDefault();
+  const input=$('#task-title');
+  try{
+    await api('/api/tareas',{
+      method:'POST',body:JSON.stringify({titulo:input.value.trim()})
+    });
+    input.value='';
+    await renderTasks();
+  }catch(err){notify(err.message);}
+};
+
+async function renderTasks(){
+  const container=$('#tasks');container.replaceChildren();
+  try{
+    const items=await api('/api/tareas');
+    if(!items.length){container.textContent='Aún no tienes tareas.';return;}
+    items.forEach(item=>{
+      const entry=document.createElement('div');entry.className='entry';
+      const title=document.createElement('span');title.textContent=item.titulo;
+      if(item.completada)title.style.textDecoration='line-through';
+      const actions=document.createElement('div');
+      const toggle=document.createElement('button');
+      toggle.textContent=item.completada?'Reabrir':'Completar';
+      toggle.onclick=async()=>{
+        try{
+          await api('/api/tareas/'+item.id,{
+            method:'PATCH',
+            body:JSON.stringify({completada:!item.completada})
+          });
+          await renderTasks();
+        }catch(err){notify(err.message);}
+      };
+      const remove=document.createElement('button');
+      remove.textContent='Eliminar';
+      remove.style.marginLeft='5px';
+      remove.onclick=async()=>{
+        try{
+          await api('/api/tareas/'+item.id,{method:'DELETE'});
+          await renderTasks();
+        }catch(err){notify(err.message);}
+      };
+      actions.append(toggle,remove);entry.append(title,actions);container.append(entry);
+    });
+  }catch(err){container.textContent=err.message;}
+}
+
+$('#save-config').onclick=()=>{
+  const max=Number($('#max-grade').value);
+  const pass=Number($('#pass-grade').value);
+  if(!Number.isFinite(max)||!Number.isFinite(pass)||max<1||max>100||pass<0||pass>max){
+    $('#config-message').textContent='Verifica la escala de calificación.';
+    return;
+  }
+  maxGrade=max;passGrade=pass;
+  document.querySelectorAll('.grade-input').forEach(i=>i.max=maxGrade);
+  $('#config-message').textContent='Configuración actualizada.';
+};
+
+addGrade('4.5');addGrade('3.8');addGrade('5.0');addGrade('4.2');
+$('#grade-form').requestSubmit();
+</script>
+</body>
+</html>
